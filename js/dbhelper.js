@@ -1,4 +1,57 @@
 /**
+ * idb.
+ */
+const idbApp = (function() {
+  'use strict';
+
+  if(!navigator.serviceWorker) {
+    console.log('Exited idbApp due to no service worker installed.');
+    return Promise.resolve();
+  }
+
+  const dbPromise = idb.open('restaurantreviews', 1, function(upgradeDb) {
+    switch (upgradeDb.oldVersion) {
+      case 0:
+        upgradeDb.createObjectStore('restaurants', {
+          keyPath: 'id'
+        });
+    }
+  });
+
+  function addRestaurantById(restaurant) {
+    return dbPromise.then(function(db) {
+      const tx = db.transaction('restaurants', 'readwrite');
+      const store = tx.objectStore('restaurants');
+      store.put(restaurant);
+      return tx.complete;
+    }).catch(function(error) {
+      // tx.abort();
+      console.log("Unable to add restaurant to IndexedDB", error);
+    });
+  }
+
+  function fetchRestaurantById(id) {
+    return dbPromise.then(function(db) {
+      const tx = db.transaction('restaurants');
+      const store = tx.objectStore('restaurants');
+      return store.get(parseInt(id));
+    }).then(function(restaurantObject) {
+      return restaurantObject;
+    }).catch(function(e) {
+      console.log("idbApp.fetchRestaurantById errored out:", e);
+    });
+  }
+
+  return {
+    dbPromise: (dbPromise),
+    addRestaurantById: (addRestaurantById),
+    fetchRestaurantById: (fetchRestaurantById),
+  };
+})();
+
+
+
+/**
  * Common database helper functions.
  */
 class DBHelper {
@@ -8,27 +61,23 @@ class DBHelper {
    * Change this to restaurants.json file location on your server.
    */
   static get DATABASE_URL() {
-    const port = 3000 // Change this to your server port
-    return `http://localhost:${port}/data/restaurants.json`;
+    const port = 1337 // Change this to your server port
+    return `http://localhost:${port}/restaurants/`;
   }
 
   /**
    * Fetch all restaurants.
    */
   static fetchRestaurants(callback) {
-    let xhr = new XMLHttpRequest();
-    xhr.open('GET', DBHelper.DATABASE_URL);
-    xhr.onload = () => {
-      if (xhr.status === 200) { // Got a success response from server!
-        const json = JSON.parse(xhr.responseText);
-        const restaurants = json.restaurants;
-        callback(null, restaurants);
-      } else { // Oops!. Got an error from server.
-        const error = (`Request failed. Returned status of ${xhr.status}`);
-        callback(error, null);
-      }
-    };
-    xhr.send();
+    fetch(DBHelper.DATABASE_URL)
+    .then(response => response.json())
+    .then(function(jsonResponse) {
+      callback(null, jsonResponse);
+    })
+    .catch(function(error) {
+      const errorMessage = (`Request failed. Returned status of ${error}`);
+      callback(errorMessage, null);
+    });
   }
 
   /**
@@ -36,16 +85,29 @@ class DBHelper {
    */
   static fetchRestaurantById(id, callback) {
     // fetch all restaurants with proper error handling.
-    DBHelper.fetchRestaurants((error, restaurants) => {
-      if (error) {
-        callback(error, null);
-      } else {
-        const restaurant = restaurants.find(r => r.id == id);
-        if (restaurant) { // Got the restaurant
-          callback(null, restaurant);
-        } else { // Restaurant does not exist in the database
-          callback('Restaurant does not exist', null);
-        }
+    const idbRestaurant = idbApp.fetchRestaurantById(id);
+    idbRestaurant.then(function(idbRestaurantObject) {
+      if (idbRestaurantObject) {
+        console.log("GC: fetchRestaurantById from IndexedDB");
+        callback(null, idbRestaurantObject);
+        return;
+      }
+      else {
+        DBHelper.fetchRestaurants((error, restaurants) => {
+          if (error) {
+            callback(error, null);
+          } else {
+            const restaurant = restaurants.find(r => r.id == id);
+            if (restaurant) { // Got the restaurant
+              let idbMessages = idbApp.addRestaurantById(restaurant); // adding restaurant to IndexedDB
+              // console.log("idbMessages", idbMessages);
+              console.log("GC: fetchRestaurantById from network");
+              callback(null, restaurant);
+            } else { // Restaurant does not exist in the database
+              callback('Restaurant does not exist', null);
+            }
+          }
+        });
       }
     });
   }
@@ -150,20 +212,37 @@ class DBHelper {
    * Restaurant image URL.
    */
   static imageUrlForRestaurant(restaurant) {
-    return (`/img/${restaurant.photograph}`);
+    return (`./img/${restaurant.photograph}.webp`);
+  }
+
+  /**
+   * Restaurant image alt.
+   */
+  static imageAltForRestaurant(restaurant) {
+    return (`${restaurant.alt_text}`);
   }
 
   /**
    * Map marker for a restaurant.
    */
   static mapMarkerForRestaurant(restaurant, map) {
-    const marker = new google.maps.Marker({
-      position: restaurant.latlng,
-      title: restaurant.name,
-      url: DBHelper.urlForRestaurant(restaurant),
-      map: map,
-      animation: google.maps.Animation.DROP
+    // icon color plugin came from this repo https://github.com/pointhi/leaflet-color-markers
+    const redIcon = new L.Icon({
+      iconUrl: './img/marker-icon-2x-red.png',
+      shadowUrl: './img/marker-shadow.png',
+      iconSize: [25, 41],
+      iconAnchor: [12, 41],
+      popupAnchor: [1, -34],
+      shadowSize: [41, 41]
     });
+
+    let marker = L.marker([restaurant.latlng.lat, restaurant.latlng.lng], {
+      icon:redIcon,
+      keyboard: false,
+      bounceOnAdd: true,
+      bounceOnAddOptions: {duration: 500, height: 100},
+    }).addTo(map);
+    marker.bindPopup(`<a href="${DBHelper.urlForRestaurant(restaurant)}">${restaurant.name}</a>`);
     return marker;
   }
 
