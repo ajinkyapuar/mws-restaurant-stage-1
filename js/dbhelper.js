@@ -1,15 +1,15 @@
 /**
  * idb.
  */
-const idbApp = (function() {
+const idbApp = (function () {
   'use strict';
 
-  if(!navigator.serviceWorker) {
+  if (!navigator.serviceWorker) {
     console.log('Exited idbApp due to no service worker installed.');
     return Promise.resolve();
   }
 
-  const dbPromise = idb.open('restaurantreviews', 1, function(upgradeDb) {
+  const dbPromise = idb.open('restaurantreviews', 1, function (upgradeDb) {
     switch (upgradeDb.oldVersion) {
       case 0:
         upgradeDb.createObjectStore('restaurants', {
@@ -19,25 +19,25 @@ const idbApp = (function() {
   });
 
   function addRestaurantById(restaurant) {
-    return dbPromise.then(function(db) {
+    return dbPromise.then(function (db) {
       const tx = db.transaction('restaurants', 'readwrite');
       const store = tx.objectStore('restaurants');
       store.put(restaurant);
       return tx.complete;
-    }).catch(function(error) {
+    }).catch(function (error) {
       // tx.abort();
       console.log("Unable to add restaurant to IndexedDB", error);
     });
   }
 
   function fetchRestaurantById(id) {
-    return dbPromise.then(function(db) {
+    return dbPromise.then(function (db) {
       const tx = db.transaction('restaurants');
       const store = tx.objectStore('restaurants');
       return store.get(parseInt(id));
-    }).then(function(restaurantObject) {
+    }).then(function (restaurantObject) {
       return restaurantObject;
-    }).catch(function(e) {
+    }).catch(function (e) {
       console.log("idbApp.fetchRestaurantById errored out:", e);
     });
   }
@@ -70,14 +70,14 @@ class DBHelper {
    */
   static fetchRestaurants(callback) {
     fetch(DBHelper.DATABASE_URL)
-    .then(response => response.json())
-    .then(function(jsonResponse) {
-      callback(null, jsonResponse);
-    })
-    .catch(function(error) {
-      const errorMessage = (`Request failed. Returned status of ${error}`);
-      callback(errorMessage, null);
-    });
+      .then(response => response.json())
+      .then(function (jsonResponse) {
+        callback(null, jsonResponse);
+      })
+      .catch(function (error) {
+        const errorMessage = (`Request failed. Returned status of ${error}`);
+        callback(errorMessage, null);
+      });
   }
 
   /**
@@ -86,13 +86,12 @@ class DBHelper {
   static fetchRestaurantById(id, callback) {
     // fetch all restaurants with proper error handling.
     const idbRestaurant = idbApp.fetchRestaurantById(id);
-    idbRestaurant.then(function(idbRestaurantObject) {
+    idbRestaurant.then(function (idbRestaurantObject) {
       if (idbRestaurantObject) {
         console.log("GC: fetchRestaurantById from IndexedDB");
         callback(null, idbRestaurantObject);
         return;
-      }
-      else {
+      } else {
         DBHelper.fetchRestaurants((error, restaurants) => {
           if (error) {
             callback(error, null);
@@ -219,7 +218,8 @@ class DBHelper {
    * Restaurant image alt.
    */
   static imageAltForRestaurant(restaurant) {
-    return (`${restaurant.alt_text}`);
+    // return (`${restaurant.alt_text}`);
+    return 'Restaurant Image';
   }
 
   /**
@@ -237,10 +237,13 @@ class DBHelper {
     });
 
     let marker = L.marker([restaurant.latlng.lat, restaurant.latlng.lng], {
-      icon:redIcon,
+      icon: redIcon,
       keyboard: false,
       bounceOnAdd: true,
-      bounceOnAddOptions: {duration: 500, height: 100},
+      bounceOnAddOptions: {
+        duration: 500,
+        height: 100
+      },
     }).addTo(map);
     marker.bindPopup(`<a href="${DBHelper.urlForRestaurant(restaurant)}">${restaurant.name}</a>`);
     return marker;
