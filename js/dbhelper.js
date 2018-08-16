@@ -1,83 +1,71 @@
 /**
- * idb.
- */
-const idbApp = (function () {
-  'use strict';
-
-  if (!navigator.serviceWorker) {
-    console.log('Exited idbApp due to no service worker installed.');
-    return Promise.resolve();
-  }
-
-  const dbPromise = idb.open('restaurantreviews', 1, function (upgradeDb) {
-    switch (upgradeDb.oldVersion) {
-      case 0:
-        upgradeDb.createObjectStore('restaurants', {
-          keyPath: 'id'
-        });
-    }
-  });
-
-  function addRestaurantById(restaurant) {
-    return dbPromise.then(function (db) {
-      const tx = db.transaction('restaurants', 'readwrite');
-      const store = tx.objectStore('restaurants');
-      store.put(restaurant);
-      return tx.complete;
-    }).catch(function (error) {
-      // tx.abort();
-      console.log("Unable to add restaurant to IndexedDB", error);
-    });
-  }
-
-  function fetchRestaurantById(id) {
-    return dbPromise.then(function (db) {
-      const tx = db.transaction('restaurants');
-      const store = tx.objectStore('restaurants');
-      return store.get(parseInt(id));
-    }).then(function (restaurantObject) {
-      return restaurantObject;
-    }).catch(function (e) {
-      console.log("idbApp.fetchRestaurantById errored out:", e);
-    });
-  }
-
-  return {
-    dbPromise: (dbPromise),
-    addRestaurantById: (addRestaurantById),
-    fetchRestaurantById: (fetchRestaurantById),
-  };
-})();
-
-
-
-/**
  * Common database helper functions.
  */
+
 class DBHelper {
 
   /**
    * Database URL.
    * Change this to restaurants.json file location on your server.
    */
-  static get DATABASE_URL() {
+  static get API_URL() {
     const port = 1337 // Change this to your server port
-    return `http://localhost:${port}/restaurants/`;
+    //return `http://localhost:${port}/data/restaurants.json`;
+    return `http://localhost:${port}/restaurants`;
   }
 
   /**
    * Fetch all restaurants.
    */
   static fetchRestaurants(callback) {
-    fetch(DBHelper.DATABASE_URL)
-      .then(response => response.json())
-      .then(function (jsonResponse) {
-        callback(null, jsonResponse);
-      })
-      .catch(function (error) {
-        const errorMessage = (`Request failed. Returned status of ${error}`);
-        callback(errorMessage, null);
-      });
+    var online = window.navigator.onLine;
+    if (online) {
+
+      // Fetch restaurants from API
+      fetch(DBHelper.API_URL)
+        .then(function (response) {
+          return response.json();
+        })
+
+        // Add restaurants to DB
+        .then(function (restaurants) {
+          var dbPromise = idb.open('restaurantDB', 1, function (upgradeDB) {
+            upgradeDB.createObjectStore('restaurants', {
+              keyPath: 'id'
+            });
+          })
+          dbPromise.then(function (db) {
+            var tx = db.transaction('restaurants', 'readwrite');
+            var restaurantStore = tx.objectStore('restaurants')
+
+            restaurants.forEach(function (restaurant) {
+              restaurantStore.put(restaurant);
+              return tx.complete;
+            })
+            return restaurantStore.getAll();
+          })
+          callback(null, restaurants);
+        })
+        .catch(function (error) {
+          console.log('An error has occurred.', error);
+          callback(error, null);
+        });
+    } else {
+      // Get restaurants from DB
+      var dbPromise = idb.open('restaurantDB')
+      dbPromise.then(function (db) {
+          var tx = db.transaction('restaurants');
+          var restaurantStore = tx.objectStore('restaurants');
+          return restaurantStore.getAll();
+        })
+        .then(function (restaurants) {
+          callback(null, restaurants);
+        })
+        .catch(function (error) {
+          console.log('An error has occurred.', error);
+          callback(error, null);
+        });
+    }
   }
 
   /**
@@ -85,28 +73,16 @@ class DBHelper {
    */
   static fetchRestaurantById(id, callback) {
     // fetch all restaurants with proper error handling.
-    const idbRestaurant = idbApp.fetchRestaurantById(id);
-    idbRestaurant.then(function (idbRestaurantObject) {
-      if (idbRestaurantObject) {
-        console.log("GC: fetchRestaurantById from IndexedDB");
-        callback(null, idbRestaurantObject);
-        return;
+    DBHelper.fetchRestaurants((error, restaurants) => {
+      if (error) {
+        callback(error, null);
       } else {
-        DBHelper.fetchRestaurants((error, restaurants) => {
-          if (error) {
-            callback(error, null);
-          } else {
-            const restaurant = restaurants.find(r => r.id == id);
-            if (restaurant) { // Got the restaurant
-              let idbMessages = idbApp.addRestaurantById(restaurant); // adding restaurant to IndexedDB
-              // console.log("idbMessages", idbMessages);
-              console.log("GC: fetchRestaurantById from network");
-              callback(null, restaurant);
-            } else { // Restaurant does not exist in the database
-              callback('Restaurant does not exist', null);
-            }
-          }
-        });
+        const restaurant = restaurants.find(r => r.id == id);
+        if (restaurant) { // Got the restaurant
+          callback(null, restaurant);
+        } else { // Restaurant does not exist in the database
+          callback('Restaurant does not exist', null);
+        }
       }
     });
   }
@@ -211,20 +187,19 @@ class DBHelper {
    * Restaurant image URL.
    */
   static imageUrlForRestaurant(restaurant) {
-    return (`./img/${restaurant.photograph}.webp`);
+    return (`/img/${restaurant.photograph}.jpg`);
   }
 
-  /**
-   * Restaurant image alt.
-   */
   static imageAltForRestaurant(restaurant) {
-    // return (`${restaurant.alt_text}`);
+    // return (`/img270/${restaurant.photograph}.jpg`);
     return 'Restaurant Image';
+
   }
 
   /**
    * Map marker for a restaurant.
    */
+
   static mapMarkerForRestaurant(restaurant, map) {
     // icon color plugin came from this repo https://github.com/pointhi/leaflet-color-markers
     const redIcon = new L.Icon({

@@ -1,4 +1,4 @@
-const staticCacheName = 'restaurant-reviews-v24';
+const staticCacheName = 'restaurant-reviews-v25';
 
 let urlsToCache = [
   './',
