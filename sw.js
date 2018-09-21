@@ -1,296 +1,121 @@
-// importScripts('https://storage.googleapis.com/workbox-cdn/releases/3.2.0/workbox-sw.js');
-
-// if (workbox) {
-// 	console.log(`Yay! Workbox is loaded 🎉`);
-// } else {
-// 	console.log(`Boo! Workbox didn't load 😬`);
-// }
-// var dataUrl = 'http://localhost:1337/restaurants'
-
-// // not used because we use workbox
-// // var CACHE_NAME = 'cache-v5';
-// // var urlsToCache = [
-// // 	// '/',
-// // 	// '.',
-// // 	// 'img/1.jpg',
-// // 	// 'img/2.jpg',
-// // 	// 'img/3.jpg',
-// // 	// 'img/4.jpg',
-// // 	// 'img/5.jpg',
-// // 	// 'img/6.jpg',
-// // 	// 'img/7.jpg',
-// // 	// 'img/8.jpg',
-// // 	// 'img/9.jpg',
-// // 	// 'img/10.jpg',
-// // 	// 'img/1-128w.jpg',
-// // 	// 'img/2-128w.jpg',
-// // 	// 'img/3-128w.jpg',
-// // 	// 'img/4-128w.jpg',
-// // 	// 'img/5-128w.jpg',
-// // 	// 'img/6-128w.jpg',
-// // 	// 'img/7-128w.jpg',
-// // 	// 'img/8-128w.jpg',
-// // 	// 'img/9-128w.jpg',
-// // 	// 'img/10-128w.jpg',
-// // 	// 'img/1-400w.jpg',
-// // 	// 'img/2-400w.jpg',
-// // 	// 'img/3-400w.jpg',
-// // 	// 'img/4-400w.jpg',
-// // 	// 'img/5-400w.jpg',
-// // 	// 'img/6-400w.jpg',
-// // 	// 'img/7-400w.jpg',
-// // 	// 'img/8-400w.jpg',
-// // 	// 'img/9-400w.jpg',
-// // 	// 'img/10-400w.jpg',
-// // 	// 'img/1-500w.jpg',
-// // 	// 'img/2-500w.jpg',
-// // 	// 'img/3-500w.jpg',
-// // 	// 'img/4-500w.jpg',
-// // 	// 'img/5-500w.jpg',
-// // 	// 'img/6-500w.jpg',
-// // 	// 'img/7-500w.jpg',
-// // 	// 'img/8-500w.jpg',
-// // 	// 'img/9-500w.jpg',
-// // 	// 'img/10-500w.jpg',
-// // 	// 'img/1.webp',
-// // 	// 'img/2.webp',
-// // 	// 'img/3.webp',
-// // 	// 'img/4.webp',
-// // 	// 'img/5.webp',
-// // 	// 'img/6.webp',
-// // 	// 'img/7.webp',
-// // 	// 'img/8.webp',
-// // 	// 'img/9.webp',
-// // 	// 'img/10.webp',
-// // 	// 'index.html',
-// // 	// 'restaurant.html',
-// // 	// 'css/allStyles.css',
-// // 	// // 'js/dbhelper.js',
-// // 	// // 'js/main.js',
-// // 	// // 'js/restaurant_info.js',
-// // 	// 'js/allMain.min.js',
-// // 	// 'js/allRestaurant.min.js',
-// // 	// dataUrl
-// // ];
+/* global idb */
+/* eslint-env browser, es6 */
 
 
-// // workbox.routing.registerRoute(
-// // 	new RegExp('.*\.js'),
-// // 	workbox.strategies.networkFirst()
-// // );
+/* Register service worker if browser support found */
+if ("serviceWorker" in navigator) {
+	window.addEventListener("load", function() {
+		navigator.serviceWorker.register("/sw.js")
+			.then(registration => {
+				console.log("Root registered on scope", registration.scope);
+			}).catch(err => {
+				console.log("Registration failed:", err);
+			})
+	});
+}
 
+const cacheName = "restaurant-review-v2";
 
+/* Install service worker and cache files */
+self.addEventListener("install", event => {
+	event.waitUntil(
 
-// // Cache JS/CSS files
-// workbox.routing.registerRoute(
-// 	/\.(?:js|html|css)$/,
-// 	// Use cache but update in the background ASAP
-// 	workbox.strategies.staleWhileRevalidate({
-// 		// Use a custom cache name
-// 		cacheName: 'static-resources',
-// 	}),
-// );
+		caches.open(cacheName)
+			.then(function(cache) {
+				return cache.addAll([
+					"/",
+					"index.html",
+					"restaurant.html?id=1",
+					"restaurant.html?id=2",
+					"restaurant.html?id=3",
+					"restaurant.html?id=4",
+					"restaurant.html?id=5",
+					"restaurant.html?id=6",
+					"restaurant.html?id=7",
+					"restaurant.html?id=8",
+					"restaurant.html?id=9",
+					"restaurant.html?id=10",
+					"sw.js",
+					"css/styles.css",
+					"js/main.min.js",
+					"js/restaurant.min.js",
+					"img/1-400_small_1x.webp",
+					"img/1-800_large_1x.webp",
+					"img/2-400_small_1x.webp",
+					"img/2-800_large_1x.webp",
+					"img/3-400_small_1x.webp",
+					"img/3-800_large_1x.webp",
+					"img/4-400_small_1x.webp",
+					"img/4-800_large_1x.webp",
+					"img/5-400_small_1x.webp",
+					"img/5-800_large_1x.webp",
+					"img/6-400_small_1x.webp",
+					"img/6-800_large_1x.webp",
+					"img/7-400_small_1x.webp",
+					"img/7-800_large_1x.webp",
+					"img/8-400_small_1x.webp",
+					"img/8-800_large_1x.webp",
+					"img/9-400_small_1x.webp",
+					"img/9-800_large_1x.webp",
+					"img/10-400_small_1x.webp",
+					"img/10-800_large_1x.webp"
+				]);
+			}).catch(err => {
+				console.log("Error with caching", err);
+			})
+	);
+});
 
-// workbox.routing.registerRoute(
-// 	// Cache image files
-// 	/.*\.(?:png|jpg|jpeg|svg|gif|webp)/,
-// 	// Use the cache if it's available
-// 	workbox.strategies.cacheFirst({
-// 		// Use a custom cache name
-// 		cacheName: 'image-cache',
-// 		plugins: [
-// 			new workbox.expiration.Plugin({
-// 				// Cache only 60 images
-// 				maxEntries: 80,
-// 				// Cache for a maximum of a week
-// 				maxAgeSeconds: 7 * 24 * 60 * 60,
-// 			})
-// 		],
-// 	})
-// );
+/* Only keep latest cache version */
+self.addEventListener("activate", event => {
+	event.waitUntil(
+		caches.keys()
+			.then(cacheList => {
+				Promise.all(
+					cacheList.filter(cacheItem => {
+						return cacheItem.startsWith("restaurant-review") && cacheItem !== cacheName;
+					}).map(cacheItem => {
+						return caches.delete(cacheItem);
+					}));
+			})
+	);
+});
 
-
-// workbox.routing.registerRoute(
-// 	new RegExp('https://fonts.(?:googleapis|gstatic).com/(.*)'),
-// 	workbox.strategies.cacheFirst({
-// 		cacheName: 'googleapis',
-// 		plugins: [
-// 			new workbox.expiration.Plugin({
-// 				maxEntries: 10,
-// 			}),
-// 		],
-// 	}),
-// );
-
-
-// // self.addEventListener('install', function (event) {
-// // 	// Perform install steps
-// // 	event.waitUntil(
-// // 		caches.open(CACHE_NAME)
-// // 			.then(function (cache) {
-// // 				console.log('Opened cache');
-// // 				return cache.addAll(urlsToCache);
-// // 			})
-// // 	);
-// // });
-
-
-// self.addEventListener('fetch', function (event) {
-// 	/////////// temp fix for only-if-cached bug
-// 	if (event.request.cache === 'only-if-cached' && event.request.mode !== 'same-origin') {
-// 		return;
-// 	}
-// 	////////// end of only-if-cached fix
-
-
-
-
-
-// 	event.respondWith(
-// 		caches.match(event.request)
-// 			.then(function (response) {
-
-// 				if (event.request.url == dataUrl) {
-// 					console.log('fetching data url:' + event.request.url)
-
-
-// 					// ==========indexedDB================
-// 					const dbName = 'restaurantDB'
-// 					const dbVersion = 10
-
-// 					// Create/open database
-// 					var request = indexedDB.open(dbName, dbVersion);
-
-// 					request.onerror = function (event) {
-// 						console.log('indexedDB error: ' + this.error);
-// 					};
-
-// 					// ============= ON SUCCESS ================
-// 					request.onsuccess = function (event) {
-// 						console.log('Database initialised succesfully');
-
-// 						// store the result of opening the database in the db variable.
-// 						var db = event.target.result;
-
-// 						db.onerror = function (event) {
-// 						// Generic error handler for all errors targeted 
-// 						// at this database's requests!
-// 							console.log('Database error: ' + event.target.errorCode);
-// 						};
-
-// 						// open a read/write db transaction, ready for adding the data
-// 						var transaction = db.transaction(['restaurants'], 'readwrite');
-
-// 						// call an object store that's already been added to the database
-// 						var objectStore = transaction.objectStore('restaurants');
-
-// 						fetch(dataUrl).then(function (response) {
-// 							console.log('data url fetched');
-// 							console.log(response);
-
-// 							return response.json()
-// 						}).then(function (data) {
-// 							console.log('data: ' + data);
-
-// 							// transaction again because the previous has been ended
-// 							var transaction = db.transaction(['restaurants'], 'readwrite');
-// 							var objectStore = transaction.objectStore('restaurants');
-
-// 							data.forEach(function (item) {
-// 								objectStore.put(item);
-// 							})
-// 						})
-
-// 						// fetch all restaurants objects
-// 						// const addRestaurantsToDB = (restaurants = self.restaurants) => {
-// 						// 	restaurants.forEach(restaurant => {
-// 						// 	// add each restaurant object to db
-// 						// 		var requestAddRestaurant = objectStore.add(restaurant);
-
-// 						// 		console.log('restaurant object added to db:' + restaurant)
-
-// 						// 		requestAddRestaurant.onsuccess = function (event) {
-// 						// 		// (to detect whether it has been succesfully
-// 						// 		// added to the database, you'd look at transaction.oncomplete)
-// 						// 			console.log('Request to add restaurant was successful');
-// 						// 		};
-// 						// 	});
-// 						// }
-// 						// addRestaurantsToDB()
-
-// 						// report on the success of the transaction completing, when everything is done
-// 						transaction.oncomplete = function () {
-// 							console.log('Transaction completed: database modification finished');
-// 						};
-
-// 						transaction.onerror = function () {
-// 							console.log('Transaction not opened due to error: ' + transaction.error);
-// 						};
-
-// 					// console.log('REPORT ///////////////////////////////');
-// 					// console.log('objectStore indexNames: ' + objectStore.indexNames);
-// 					// console.log('objectStore keyPath: ' + objectStore.keyPath);
-// 					// console.log('objectStore name: ' + objectStore.name);
-// 					// console.log('objectStore transaction: ' + objectStore.transaction);
-// 					// console.log('objectStore autoIncrement: ' + objectStore.autoIncrement);
-// 					// console.log('///////////////////////////////');
-
-// 					// var restaurants = []
-// 					// const fetchRestaurantsFromDB = () => {
-// 					// 	var transaction = db.transaction('restaurants');
-// 					// 	var objectStore = transaction.objectStore('restaurants');
-
-// 					// 	objectStore.openCursor().onsuccess = function (event) {
-// 					// 		var cursor = event.target.result;
-// 					// 		if (cursor) {
-// 					// 			console.log('Name for restaurant key: ' + cursor.key + ' is ' + cursor.value.name);
-// 					// 			restaurants.push(cursor.value)
-// 					// 			cursor.continue();
-// 					// 		} else {
-// 					// 			console.log('No more entries!');
-// 					// 		}
-// 					// 	};
-
-// 					// }
-
-// 					// fetchRestaurantsFromDB()
-
-// 					};
-
-
-// 					// ============= ON UPGRADE (DB SCHEMA) ================
-// 					request.onupgradeneeded = function (event) {
-// 						console.log('onupgradeneeded request triggered: ' + event);
-
-// 						var db = event.target.result;
-
-// 						db.onerror = function (event) {
-// 							console.log('Error loading database');
-// 						};
-
-// 						db.onversionchange = function (event) {
-// 							console.log('version changed, user should be informed');
-
-// 						};
-
-
-// 						// Create an objectStore for this database
-// 						var objectStore = db.createObjectStore('restaurants', {
-// 							keyPath: 'name'
-// 						// autoIncrement: true
-// 						});
-
-// 						console.log('onupgradeneeded event triggered, object store restaurants created');
-
-// 					};
-
-
-// 				// ==========indexedDB END================		
-// 				}
-
-
-// 				// return the cache or a new request for cache
-// 				return response || fetch(event.request);
-// 			})
-// 	);
-// });
+self.addEventListener("fetch", event => {
+	const url = new URL(event.request.url);
+	/* Show only placeholder for google maps if offline */
+	if (event.request.url.startsWith("https://maps.googleapis.com/maps/api/js?key=")) {
+		event.respondWith(
+			fetch(event.request)
+				.then(response => {
+					return response;
+				}).catch(err => {
+					return new Response("if(location.pathname === \"/\") {updateRestaurants();} else {fetchRestaurantFromURL((error, restaurant) => {if (error) {console.error(error);} else {fillBreadcrumb();}});}document.getElementById(\"map-container\").style.display=\"none\"");
+				})
+		)
+	/* Offer/update cache files */
+	} else if (event.request.url.endsWith(".webp") || location.pathname === "/restaurant.html") {
+		event.respondWith(
+			caches.open(cacheName)
+				.then(cache => {
+					return cache.match(event.request)
+						.then(response => {
+							return response || fetch(event.request)
+								.then(response => {
+									cache.put(event.request, response.clone());
+									return response;
+								})
+						})
+				})
+		)
+	} else {
+		event.respondWith(
+			caches.match(event.request)
+				.then(response => {
+					return response || fetch(event.request);
+				}).catch(err => {
+					console.log("Error with request", err);
+				})
+		);
+	}
+});
